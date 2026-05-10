@@ -1,0 +1,3 @@
+[submodule "thirdparty/leanclr"]
+	path = thirdparty/leanclr
+	url = https://github.com/focus-creative-games/leanclr.git

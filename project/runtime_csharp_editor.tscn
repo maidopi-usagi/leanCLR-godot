@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://dynd0csycincd"]
+
+[ext_resource type="Script" uid="uid://b626vql61yl6r" path="res://scripts/RuntimeCSharpEditor.gd" id="1_editor_script"]
+
+[node name="RuntimeCSharpEditor" type="Window" unique_id=440944382]
+oversampling_override = 1.0
+title = "LeanCLR Runtime C# Editor"
+position = Vector2i(560, 36)
+size = Vector2i(760, 560)
+visible = false
+always_on_top = true
+script = ExtResource("1_editor_script")
+
+[node name="RuntimeCSharpEditorPanel" type="VBoxContainer" parent="." unique_id=48727115]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RuntimeCSharpTitle" type="Label" parent="RuntimeCSharpEditorPanel" unique_id=1798922565]
+layout_mode = 2
+text = "HotReloadSmoke.cs"
+
+[node name="RuntimeCSharpCodeEdit" type="CodeEdit" parent="RuntimeCSharpEditorPanel" unique_id=2041813682]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(720, 390)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RuntimeCSharpRunButton" type="Button" parent="RuntimeCSharpEditorPanel" unique_id=1963029537]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Build + Execute Without Restart"
+
+[node name="RuntimeCSharpStatus" type="Label" parent="RuntimeCSharpEditorPanel" unique_id=32725415]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ready"

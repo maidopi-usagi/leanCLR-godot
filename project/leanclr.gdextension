@@ -1,0 +1,14 @@
+[configuration]
+
+entry_symbol = "leanclr_godot_library_init"
+compatibility_minimum = "4.4"
+reloadable = true
+
+[libraries]
+
+windows.debug.x86_64 = "res://bin/Debug/leanclr_godot.dll"
+windows.release.x86_64 = "res://bin/Release/leanclr_godot.dll"
+linux.debug.x86_64 = "res://bin/Debug/libleanclr_godot.so"
+linux.release.x86_64 = "res://bin/Release/libleanclr_godot.so"
+macos.debug = "res://bin/Debug/libleanclr_godot.dylib"
+macos.release = "res://bin/Release/libleanclr_godot.dylib"

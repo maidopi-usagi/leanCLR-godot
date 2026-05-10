@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://dom55c3dsfsh6"]
+
+[ext_resource type="Script" uid="uid://bo2r8gbx576k6" path="res://scripts/HotReloadSmoke.cs" id="1_flappy"]
+[ext_resource type="Texture2D" uid="uid://i0yc5j7xuf21" path="res://icon.svg" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://dynd0csycincd" path="res://runtime_csharp_editor.tscn" id="3_editor_scene"]
+[ext_resource type="Script" uid="uid://dca5khgessig" path="res://scripts/HotReloadInputRelay.gd" id="4_input_relay"]
+
+[node name="RuntimeHotReloadDemo" type="Node2D" unique_id=1212946146]
+
+[node name="GameWorld" type="Node2D" parent="." unique_id=914199522]
+
+[node name="Sky" type="ColorRect" parent="GameWorld" unique_id=90320198]
+offset_right = 540.0
+offset_bottom = 360.0
+color = Color(0.42, 0.78, 0.95, 1)
+
+[node name="CloudA" type="ColorRect" parent="GameWorld" unique_id=1619648798]
+offset_left = 76.0
+offset_top = 44.0
+offset_right = 168.0
+offset_bottom = 66.0
+color = Color(0.92, 0.97, 1, 1)
+
+[node name="CloudB" type="ColorRect" parent="GameWorld" unique_id=329244074]
+offset_left = 318.0
+offset_top = 74.0
+offset_right = 442.0
+offset_bottom = 98.0
+color = Color(0.92, 0.97, 1, 1)
+
+[node name="PipeTop" type="ColorRect" parent="GameWorld" unique_id=1793488116]
+offset_left = 420.0
+offset_right = 480.0
+offset_bottom = 92.0
+color = Color(0.07, 0.63, 0.23, 1)
+
+[node name="PipeBottom" type="ColorRect" parent="GameWorld" unique_id=422849216]
+offset_left = 420.0
+offset_top = 208.0
+offset_right = 480.0
+offset_bottom = 320.0
+color = Color(0.07, 0.63, 0.23, 1)
+
+[node name="Ground" type="ColorRect" parent="GameWorld" unique_id=581381780]
+offset_top = 320.0
+offset_right = 540.0
+offset_bottom = 360.0
+color = Color(0.68, 0.48, 0.22, 1)
+
+[node name="Bird" type="TextureRect" parent="GameWorld" unique_id=225012823]
+offset_left = 108.0
+offset_top = 130.0
+offset_right = 148.0
+offset_bottom = 170.0
+pivot_offset = Vector2(20, 20)
+texture = ExtResource("2_icon")
+expand_mode = 1
+
+[node name="Hud" type="Node" parent="GameWorld" unique_id=441089907]
+
+[node name="DemoStatus" type="Label" parent="GameWorld/Hud" unique_id=204759433]
+offset_left = 15.0
+offset_top = 328.0
+offset_right = 517.0
+offset_bottom = 374.0
+text = "Running flappy-physics-v1 | score=0 | y=146 | vy=0 | pipeX=420"
+
+[node name="FlappyScript" type="Node" parent="." unique_id=1458328663]
+script = ExtResource("1_flappy")
+FlapPower = 5
+Name = &"FlappyScript"
+
+[node name="LiveHotReloadHost" type="LeanCLRHotReloadHost" parent="." unique_id=465275025]
+
+[node name="HotReloadInputRelay" type="Node" parent="." unique_id=394620894]
+script = ExtResource("4_input_relay")
+
+[node name="RuntimeCSharpEditor" parent="." unique_id=56462960 instance=ExtResource("3_editor_scene")]

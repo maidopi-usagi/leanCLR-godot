@@ -1,0 +1,60 @@
+# Local editor state
+.vscode/
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Secrets and local environment
+*.env
+.env*
+!.env.example
+
+# Build output
+[Bb]uild/
+build*/
+[Dd]ebug/
+[Rr]elease/
+[Rr]elWithDebInfo/
+[Mm]in[Ss]ize[Rr]el/
+out/
+bin/
+obj/
+godot/build*/
+godot/project/bin/
+
+# CMake / native build scratch
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.ilk
+*.lib
+*.exp
+*.pdb
+*.obj
+*.idb
+*.iobj
+*.ipdb
+*.pch
+*.tlog
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+.godot
+project/leanclr/*.dll
+managed/GodotSharpCompat/Generated/
+tools/binding_generator/unsupported_api_report.json
+
+src/generated
+extension_api.json
+tools/binding_generator/__pycache__/generate_bindings.cpython-314.pyc
+tools/binding_generator/binding_statistics_report.md
+
+.cache
+project/leanclr/live_reload.txt
