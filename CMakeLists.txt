@@ -110,9 +110,14 @@ else()
             -Wl,-dead_strip
             -Wl,-exported_symbols_list,${LEANCLR_GODOT_EXPORTED_SYMBOLS}
         )
-    elseif(UNIX)
+    elseif(UNIX AND NOT EMSCRIPTEN)
         target_link_options(leanclr_godot PRIVATE -Wl,--gc-sections)
     endif()
+endif()
+
+if(EMSCRIPTEN)
+    target_link_options(leanclr_godot PRIVATE -sSIDE_MODULE=1)
+    set_target_properties(leanclr_godot PROPERTIES SUFFIX ".wasm")
 endif()
 
 set_target_properties(leanclr_godot PROPERTIES

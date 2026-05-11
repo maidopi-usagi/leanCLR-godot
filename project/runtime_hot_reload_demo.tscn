@@ -74,5 +74,8 @@ Name = &"FlappyScript"
 
 [node name="HotReloadInputRelay" type="Node" parent="." unique_id=394620894]
 script = ExtResource("4_input_relay")
+attached_assembly_name = "Game"
+reload_type_name = "Game.HotReloadSmoke"
+script_owner_path = NodePath("../FlappyScript")
 
 [node name="RuntimeCSharpEditor" parent="." unique_id=56462960 instance=ExtResource("3_editor_scene")]

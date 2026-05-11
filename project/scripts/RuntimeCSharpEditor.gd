@@ -21,6 +21,11 @@ func _ready() -> void:
 	run_button.pressed.connect(compile_and_reload)
 	show()
 
+	if OS.has_feature("web"):
+		run_button.disabled = true
+		_set_status("Web export is read-only; runtime build is desktop only.")
+		return
+
 	if OS.has_environment(AUTORUN_ENVIRONMENT) and not autorun_started:
 		autorun_started = true
 		var code := editor.text
@@ -68,6 +73,9 @@ func _create_csharp_highlighter() -> CodeHighlighter:
 func compile_and_reload() -> void:
 	if editor == null:
 		_set_status("Editor is not ready.")
+		return
+	if OS.has_feature("web"):
+		_set_status("Web export is read-only; runtime build is desktop only.")
 		return
 
 	if not _write_text_file(EDIT_SOURCE_PATH, editor.text):

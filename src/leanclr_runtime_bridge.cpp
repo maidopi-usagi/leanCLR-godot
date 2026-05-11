@@ -26,6 +26,7 @@
 #include "vm/settings.h"
 #include "interp/eval_stack_op.h"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -62,9 +63,19 @@ bool& godot_icalls_registered()
     return value;
 }
 
-std::unordered_map<Object*, leanclr::vm::RtObject*>& script_objects_by_owner()
+struct GodotObjectPtrHasher
 {
-    static std::unordered_map<Object*, leanclr::vm::RtObject*>* objects = new std::unordered_map<Object*, leanclr::vm::RtObject*>;
+    std::size_t operator()(const Object* p_object) const noexcept
+    {
+        return static_cast<std::size_t>(reinterpret_cast<uintptr_t>(p_object));
+    }
+};
+
+using ScriptObjectByOwnerMap = std::unordered_map<Object*, leanclr::vm::RtObject*, GodotObjectPtrHasher>;
+
+ScriptObjectByOwnerMap& script_objects_by_owner()
+{
+    static ScriptObjectByOwnerMap* objects = new ScriptObjectByOwnerMap;
     return *objects;
 }
 

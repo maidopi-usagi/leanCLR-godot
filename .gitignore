@@ -58,3 +58,4 @@ tools/binding_generator/binding_statistics_report.md
 
 .cache
 project/leanclr/live_reload.txt
+project/deploy/

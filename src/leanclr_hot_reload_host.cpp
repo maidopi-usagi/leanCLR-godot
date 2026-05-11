@@ -3,7 +3,6 @@
 #include "leanclr_runtime_bridge.h"
 
 #include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
@@ -17,9 +16,6 @@ namespace godot
 
 namespace
 {
-const char* RELOAD_MARKER_PATH = "res://leanclr/live_reload.txt";
-const char* RELOAD_TYPE_NAME = "Game.HotReloadSmoke";
-
 bool is_editor_scene_context()
 {
     Engine* engine = Engine::get_singleton();
@@ -43,6 +39,13 @@ bool is_editor_scene_context()
 void LeanCLRHotReloadHost::_bind_methods()
 {
     ClassDB::bind_method(D_METHOD("forward_input", "event"), &LeanCLRHotReloadHost::forward_input);
+    ClassDB::bind_method(D_METHOD("use_attached_script", "assembly_name"), &LeanCLRHotReloadHost::use_attached_script);
+    ClassDB::bind_method(D_METHOD("reload_assembly", "assembly_name", "type_name"), &LeanCLRHotReloadHost::reload_assembly);
+    ClassDB::bind_method(D_METHOD("set_script_owner_path", "script_owner_path"), &LeanCLRHotReloadHost::set_script_owner_path);
+    ClassDB::bind_method(D_METHOD("get_script_owner_path"), &LeanCLRHotReloadHost::get_script_owner_path);
+    ClassDB::bind_method(D_METHOD("get_loaded_assembly_name"), &LeanCLRHotReloadHost::get_loaded_assembly_name);
+
+    ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "script_owner_path"), "set_script_owner_path", "get_script_owner_path");
 }
 
 LeanCLRHotReloadHost::~LeanCLRHotReloadHost()
@@ -55,18 +58,17 @@ void LeanCLRHotReloadHost::_notification(int p_what)
 {
     if (p_what == NOTIFICATION_READY)
     {
-        if (is_editor_scene_context() || !is_inside_tree() || (get_tree() != nullptr && get_tree()->get_edited_scene_root() != nullptr))
+        if (should_skip_runtime())
         {
             set_process(false);
             return;
         }
 
         set_process(true);
-        check_reload_marker();
     }
     else if (p_what == NOTIFICATION_PROCESS)
     {
-        if (is_editor_scene_context() || !is_inside_tree() || (get_tree() != nullptr && get_tree()->get_edited_scene_root() != nullptr))
+        if (should_skip_runtime())
         {
             return;
         }
@@ -76,80 +78,96 @@ void LeanCLRHotReloadHost::_notification(int p_what)
         {
             LeanCLRRuntimeBridge::invoke_script_process(managed_object, delta);
         }
-
-        elapsed += delta;
-        if (elapsed >= 0.25)
-        {
-            elapsed = 0.0;
-            check_reload_marker();
-        }
     }
 }
 
 void LeanCLRHotReloadHost::forward_input(const Ref<InputEvent>& p_event)
 {
-    if (managed_object == nullptr || !p_event.is_valid() || is_editor_scene_context() || !is_inside_tree() ||
-        (get_tree() != nullptr && get_tree()->get_edited_scene_root() != nullptr))
+    if (!p_event.is_valid() || should_skip_runtime())
     {
         return;
     }
 
-    LeanCLRRuntimeBridge::invoke_script_method(managed_object, "_Input", p_event.ptr());
+    void* target_object = get_active_script_object();
+    if (target_object != nullptr)
+    {
+        LeanCLRRuntimeBridge::invoke_script_method(target_object, "_Input", p_event.ptr());
+    }
 }
 
-void LeanCLRHotReloadHost::check_reload_marker()
+void LeanCLRHotReloadHost::use_attached_script(const String& p_assembly_name)
 {
-    String assembly_name = "Game";
-    if (FileAccess::file_exists(RELOAD_MARKER_PATH))
+    LeanCLRRuntimeBridge::release_script_object(managed_object);
+    managed_object = nullptr;
+    loaded_assembly_name = p_assembly_name;
+    UtilityFunctions::print("LeanCLR live reload: using attached script assembly = ", loaded_assembly_name);
+}
+
+void LeanCLRHotReloadHost::set_script_owner_path(const NodePath& p_script_owner_path)
+{
+    script_owner_path = p_script_owner_path;
+}
+
+NodePath LeanCLRHotReloadHost::get_script_owner_path() const
+{
+    return script_owner_path;
+}
+
+String LeanCLRHotReloadHost::get_loaded_assembly_name() const
+{
+    return loaded_assembly_name;
+}
+
+bool LeanCLRHotReloadHost::should_skip_runtime() const
+{
+    return is_editor_scene_context() || !is_inside_tree() || (get_tree() != nullptr && get_tree()->get_edited_scene_root() != nullptr);
+}
+
+Object* LeanCLRHotReloadHost::get_script_owner() const
+{
+    if (!script_owner_path.is_empty())
     {
-        assembly_name = FileAccess::get_file_as_string(RELOAD_MARKER_PATH).strip_edges();
-        if (assembly_name.is_empty())
+        Node* owner = get_node_or_null(script_owner_path);
+        if (owner != nullptr)
         {
-            assembly_name = "Game";
+            return owner;
         }
     }
 
-    if (assembly_name == loaded_assembly_name)
-    {
-        return;
-    }
-
-    reload_managed_object(assembly_name);
+    return const_cast<LeanCLRHotReloadHost*>(this);
 }
 
-void LeanCLRHotReloadHost::reload_managed_object(const String& p_assembly_name)
+void* LeanCLRHotReloadHost::get_attached_script_object() const
 {
-    if (p_assembly_name == String("Game"))
+    Object* owner = get_script_owner();
+    return owner != nullptr ? LeanCLRRuntimeBridge::get_script_object_for_owner(owner) : nullptr;
+}
+
+void* LeanCLRHotReloadHost::get_active_script_object() const
+{
+    return managed_object != nullptr ? managed_object : get_attached_script_object();
+}
+
+bool LeanCLRHotReloadHost::reload_assembly(const String& p_assembly_name, const String& p_type_name)
+{
+    if (p_assembly_name.is_empty() || p_type_name.is_empty())
     {
-        LeanCLRRuntimeBridge::release_script_object(managed_object);
-        managed_object = nullptr;
-        loaded_assembly_name = p_assembly_name;
-        UtilityFunctions::print("LeanCLR live reload: using attached script assembly = ", loaded_assembly_name);
-        return;
+        UtilityFunctions::printerr("LeanCLR live reload: assembly_name and type_name are required.");
+        return false;
     }
 
-    Object* owner = this;
-    Node* parent = get_parent();
-    if (parent != nullptr)
-    {
-        Node* script_owner = parent->get_node_or_null(NodePath("FlappyScript"));
-        if (script_owner != nullptr)
-        {
-            owner = script_owner;
-        }
-    }
-
-    void* previous_object = managed_object != nullptr ? managed_object : LeanCLRRuntimeBridge::get_script_object_for_owner(owner);
+    Object* owner = get_script_owner();
+    void* previous_object = get_active_script_object();
     Variant custom_state;
     const bool has_custom_state = previous_object != nullptr &&
                                   LeanCLRRuntimeBridge::has_script_method(previous_object, "CaptureHotReloadState", 0) &&
                                   LeanCLRRuntimeBridge::invoke_script_method(previous_object, "CaptureHotReloadState", nullptr, 0, &custom_state);
 
-    void* next_object = LeanCLRRuntimeBridge::create_script_object(p_assembly_name, RELOAD_TYPE_NAME, owner);
+    void* next_object = LeanCLRRuntimeBridge::create_script_object(p_assembly_name, p_type_name, owner);
     if (next_object == nullptr)
     {
         UtilityFunctions::printerr("LeanCLR live reload: failed to load ", p_assembly_name, ": ", LeanCLRRuntimeBridge::get_last_error());
-        return;
+        return false;
     }
 
     const int32_t migrated_fields = LeanCLRRuntimeBridge::migrate_script_state(previous_object, next_object);
@@ -169,6 +187,7 @@ void LeanCLRHotReloadHost::reload_managed_object(const String& p_assembly_name)
     UtilityFunctions::print("LeanCLR live reload: migrated fields = ", migrated_fields);
     LeanCLRRuntimeBridge::invoke_script_ready(managed_object);
     LeanCLRRuntimeBridge::invoke_script_method(managed_object, "OnHotReloaded");
+    return true;
 }
 
 } // namespace godot
