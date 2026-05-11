@@ -85,6 +85,7 @@ add_library(leanclr_godot SHARED
     src/leanclr_script_language.cpp
     src/leanclr_script_loader.cpp
     src/leanclr_script_saver.cpp
+    src/leanclr_wasm_libcxx_shim.cpp
     src/register_types.cpp
 )
 
