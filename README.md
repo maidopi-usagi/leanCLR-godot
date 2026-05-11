@@ -1,8 +1,9 @@
 # LeanCLR Godot
 
 浅尝一下 LeanCLR 跑 Godot 4 脚本。
+(目前是娱乐向，请勿用于生产环境，建议等官方绑定)
 
-原版Godot加载GDExtension，C# 代码交给 LeanCLR 解释执行。现在 demo 里可以把 `.cs` 直接挂到节点上，也可以在游戏窗口里的 CodeEdit 改 C#，点运行后编译一个新 assembly，然后不重启切过去。
+原版不带Mono Godot加载GDExtension，C# 代码交给 LeanCLR 解释执行。现在 demo 里可以把 `.cs` 直接挂到节点上，也可以在游戏窗口里的 CodeEdit 改 C#，点运行后编译一个新 assembly，然后不重启切过去。
 
 已完成：
 
