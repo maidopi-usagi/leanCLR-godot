@@ -20,6 +20,8 @@ class LeanCLRHotReloadHost : public Node
 
     void set_script_owner_path(const NodePath& p_script_owner_path);
     NodePath get_script_owner_path() const;
+    void set_assembly_directory(const String& p_assembly_directory);
+    String get_assembly_directory() const;
     String get_loaded_assembly_name() const;
 
   protected:

@@ -241,6 +241,11 @@ public partial class HotReloadSmoke : Node
 
 	private bool IsGameplayObjectActive()
 	{
+		if (HasMeta(new StringName("leanclr_runtime_reload_active")))
+		{
+			return runtimeReloadedObject;
+		}
+
 		string marker = FileAccess.GetFileAsString("res://leanclr/live_reload.txt").Trim();
 		return marker == "Game" || runtimeReloadedObject;
 	}

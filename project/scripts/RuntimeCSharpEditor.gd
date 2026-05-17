@@ -4,12 +4,17 @@ const EDIT_SOURCE_PATH := "res://scripts/HotReloadSmoke.cs"
 const RELOAD_MARKER_PATH := "res://leanclr/live_reload.txt"
 const FRAMEWORK_RELATIVE_PATH := "../thirdparty/leanclr/src/libraries/dotnetframework4.x-linux"
 const AUTORUN_ENVIRONMENT := "LEANCLR_RUNTIME_EDITOR_AUTORUN"
+const WEB_ASSEMBLY_DIRECTORY := "user://leanclr"
+const WEB_RELOAD_TYPE_NAME := "Game.HotReloadSmoke"
+const WEB_DEPENDENCY_ASSEMBLIES := ["mscorlib.dll", "System.dll", "GodotSharpCompat.dll"]
 
 @onready var editor: CodeEdit = %RuntimeCSharpCodeEdit
 @onready var run_button: Button = %RuntimeCSharpRunButton
 @onready var status_label: Label = %RuntimeCSharpStatus
 
 var autorun_started := false
+var pending_web_assembly_name := ""
+var web_compile_polling := false
 
 func _ready() -> void:
 	if _is_editor_scene_context():
@@ -22,8 +27,8 @@ func _ready() -> void:
 	show()
 
 	if OS.has_feature("web"):
-		run_button.disabled = true
-		_set_status("Web export is read-only; runtime build is desktop only.")
+		set_process(true)
+		_set_status("Web Roslyn sidecar ready check...")
 		return
 
 	if OS.has_environment(AUTORUN_ENVIRONMENT) and not autorun_started:
@@ -38,6 +43,10 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	hide()
+
+func _process(_delta: float) -> void:
+	if web_compile_polling:
+		_poll_web_compile_result()
 
 func _create_csharp_highlighter() -> CodeHighlighter:
 	var highlighter := CodeHighlighter.new()
@@ -75,7 +84,7 @@ func compile_and_reload() -> void:
 		_set_status("Editor is not ready.")
 		return
 	if OS.has_feature("web"):
-		_set_status("Web export is read-only; runtime build is desktop only.")
+		compile_and_reload_web()
 		return
 
 	if not _write_text_file(EDIT_SOURCE_PATH, editor.text):
@@ -109,6 +118,110 @@ func compile_and_reload() -> void:
 
 	_set_status("Loaded marker for " + assembly_name)
 	print("LeanCLR runtime editor: requested assembly = ", assembly_name)
+
+func compile_and_reload_web() -> void:
+	if web_compile_polling:
+		_set_status("Web compiler is already building.")
+		return
+	if not _prepare_web_assembly_directory():
+		return
+
+	pending_web_assembly_name = "GameRuntimeEdit" + str(Time.get_unix_time_from_system()).replace(".", "")
+	var arguments_json := JSON.stringify([pending_web_assembly_name, editor.text])
+	var script := """
+(function(args) {
+  if (!window.LeanCLR || typeof window.LeanCLR.compileCSharp !== 'function') {
+    window.LeanCLRGodotCompileResult = { state: 'error', message: 'Roslyn sidecar is not loaded yet.' };
+    return;
+  }
+  window.LeanCLRGodotCompileResult = { state: 'building', assemblyName: args[0] };
+  window.LeanCLR.compileCSharp(args[0], args[1]).then(function(result) {
+    window.LeanCLRGodotCompileResult = result;
+  }).catch(function(error) {
+    window.LeanCLRGodotCompileResult = { state: 'error', message: String(error && error.stack ? error.stack : error) };
+  });
+})(%s);
+""" % arguments_json
+	JavaScriptBridge.eval(script)
+	web_compile_polling = true
+	_set_status("Building " + pending_web_assembly_name + " in browser Roslyn sidecar...")
+
+func _poll_web_compile_result() -> void:
+	var result_json := str(JavaScriptBridge.eval("JSON.stringify(window.LeanCLRGodotCompileResult || { state: 'idle' })"))
+	var parsed := JSON.parse_string(result_json)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var state := str(parsed.get("state", "idle"))
+	if state == "idle" or state == "building":
+		return
+	web_compile_polling = false
+	if state != "ok":
+		var message := str(parsed.get("message", "unknown compile error"))
+		_set_status("Web build failed: " + message.substr(0, 180))
+		printerr("LeanCLR runtime editor: web build failed: ", message)
+		return
+
+	var assembly_name := str(parsed.get("assemblyName", ""))
+	if assembly_name == "":
+		assembly_name = pending_web_assembly_name
+	if assembly_name == "":
+		_set_status("Web build failed: missing assembly name.")
+		return
+	var dll_base64 := str(parsed.get("dllBase64", ""))
+	if dll_base64 == "":
+		_set_status("Web build failed: compiler returned no DLL.")
+		return
+
+	var assembly_path := WEB_ASSEMBLY_DIRECTORY.path_join(assembly_name + ".dll")
+	var assembly_bytes := Marshalls.base64_to_raw(dll_base64)
+	var file := FileAccess.open(assembly_path, FileAccess.WRITE)
+	if file == null:
+		_set_status("Built " + assembly_name + ", but failed to write DLL to user://.")
+		printerr("LeanCLR runtime editor: failed to write ", assembly_path, " error = ", FileAccess.get_open_error())
+		return
+	file.store_buffer(assembly_bytes)
+	file.flush()
+	file.close()
+
+	var hot_reload_host := get_node_or_null("../LiveHotReloadHost")
+	if hot_reload_host == null:
+		_set_status("Built " + assembly_name + ", but LiveHotReloadHost was not found.")
+		return
+	_stop_marker_polling_for_web_reload()
+	hot_reload_host.set_assembly_directory(WEB_ASSEMBLY_DIRECTORY)
+	if hot_reload_host.reload_assembly(assembly_name, WEB_RELOAD_TYPE_NAME):
+		_activate_web_reload_owner()
+		_set_status("Loaded " + assembly_name + " from browser storage")
+		print("LeanCLR runtime editor: web loaded assembly = ", assembly_name)
+	else:
+		_set_status("Built " + assembly_name + ", but reload failed.")
+
+func _prepare_web_assembly_directory() -> bool:
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		_set_status("Failed to open user:// for web assemblies.")
+		return false
+	var error := dir.make_dir_recursive("leanclr")
+	if error != OK and error != ERR_ALREADY_EXISTS:
+		_set_status("Failed to create user://leanclr: " + str(error))
+		return false
+	for dependency: String in WEB_DEPENDENCY_ASSEMBLIES:
+		var source_path := "res://leanclr/" + dependency
+		var target_path := WEB_ASSEMBLY_DIRECTORY.path_join(dependency)
+		if not FileAccess.file_exists(target_path) and not _copy_file(source_path, target_path):
+			_set_status("Failed to copy " + dependency + " to browser storage.")
+			return false
+	return true
+
+func _stop_marker_polling_for_web_reload() -> void:
+	var relay := get_node_or_null("../HotReloadInputRelay")
+	if relay != null:
+		relay.set_process(false)
+
+func _activate_web_reload_owner() -> void:
+	var owner := get_node_or_null("../FlappyScript")
+	if owner != null:
+		owner.set_meta(&"leanclr_runtime_reload_active", true)
 
 func _build_assembly(project_file: String, assembly_name: String, framework_path: String) -> bool:
 	var build_args := [

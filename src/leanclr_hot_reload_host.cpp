@@ -43,9 +43,12 @@ void LeanCLRHotReloadHost::_bind_methods()
     ClassDB::bind_method(D_METHOD("reload_assembly", "assembly_name", "type_name"), &LeanCLRHotReloadHost::reload_assembly);
     ClassDB::bind_method(D_METHOD("set_script_owner_path", "script_owner_path"), &LeanCLRHotReloadHost::set_script_owner_path);
     ClassDB::bind_method(D_METHOD("get_script_owner_path"), &LeanCLRHotReloadHost::get_script_owner_path);
+    ClassDB::bind_method(D_METHOD("set_assembly_directory", "assembly_directory"), &LeanCLRHotReloadHost::set_assembly_directory);
+    ClassDB::bind_method(D_METHOD("get_assembly_directory"), &LeanCLRHotReloadHost::get_assembly_directory);
     ClassDB::bind_method(D_METHOD("get_loaded_assembly_name"), &LeanCLRHotReloadHost::get_loaded_assembly_name);
 
     ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "script_owner_path"), "set_script_owner_path", "get_script_owner_path");
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "assembly_directory"), "set_assembly_directory", "get_assembly_directory");
 }
 
 LeanCLRHotReloadHost::~LeanCLRHotReloadHost()
@@ -111,6 +114,16 @@ void LeanCLRHotReloadHost::set_script_owner_path(const NodePath& p_script_owner_
 NodePath LeanCLRHotReloadHost::get_script_owner_path() const
 {
     return script_owner_path;
+}
+
+void LeanCLRHotReloadHost::set_assembly_directory(const String& p_assembly_directory)
+{
+    LeanCLRRuntimeBridge::set_assembly_directory(p_assembly_directory);
+}
+
+String LeanCLRHotReloadHost::get_assembly_directory() const
+{
+    return LeanCLRRuntimeBridge::get_assembly_directory();
 }
 
 String LeanCLRHotReloadHost::get_loaded_assembly_name() const
